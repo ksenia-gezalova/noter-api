@@ -2,18 +2,16 @@ const { Router } = require("express");
 const sequelize = require("../utils/database");
 const TokenService = require("../tokenservice/tokenService");
 const LinkService = require("../linkService/linkService");
+const auth = require("../middleware/auth");
 
 const Note = require("../models/note");
 
 const router = Router();
 
-router.get("/all", async (req, res) => {
+router.get("/all", auth, async (req, res) => {
   try {
-    const token = req.headers.token;
-    const userId = await TokenService.checkToken(token);
-
     const { count, rows } = await Note.findAndCountAll({
-      where: { userId },
+      where: { userId: req.userId },
       limit: Number(req.query.limit),
       offset: Number(req.query.offset) || 0,
     });
@@ -28,10 +26,8 @@ router.get("/all", async (req, res) => {
   }
 });
 
-router.get("/one/:id", async (req, res) => {
+router.get("/one/:id", auth, async (req, res) => {
   try {
-    const token = req.headers.token;
-
     const note = await Note.findOne({ where: { id: req.params.id } });
 
     if (!note) {
@@ -39,9 +35,7 @@ router.get("/one/:id", async (req, res) => {
       return;
     }
 
-    const userId = await TokenService.checkToken(token);
-
-    if (note.userId !== Number(userId)) {
+    if (note.userId !== Number(req.userId)) {
       res.status(403).send("Forbidden");
       return;
     }
@@ -76,17 +70,14 @@ router.get("/shared/:link", async (req, res) => {
   }
 });
 
-router.post("/create", async (req, res) => {
+router.post("/create", auth, async (req, res) => {
   try {
-    const token = req.headers.token;
     const { title, text } = req.body;
-
-    const userId = await TokenService.checkToken(token);
 
     const note = await Note.create({
       title,
       text,
-      userId,
+      userId: req.userId,
     });
     res.status(201).send(note);
   } catch (e) {
@@ -95,9 +86,8 @@ router.post("/create", async (req, res) => {
   }
 });
 
-router.put("/change", async (req, res) => {
+router.put("/change", auth, async (req, res) => {
   try {
-    const token = req.headers.token;
     const { title, text, id } = req.body;
 
     const candidate = await Note.findOne({ where: { id } });
@@ -107,9 +97,7 @@ router.put("/change", async (req, res) => {
       return;
     }
 
-    const userId = await TokenService.checkToken(token);
-
-    if (candidate.userId !== Number(userId)) {
+    if (candidate.userId !== Number(req.userId)) {
       res.status(403).send("Forbidden");
       return;
     }
@@ -126,9 +114,8 @@ router.put("/change", async (req, res) => {
   }
 });
 
-router.delete("/delete/:id", async (req, res) => {
+router.delete("/delete/:id", auth, async (req, res) => {
   try {
-    const token = req.headers.token;
     const candidate = await Note.findOne({ where: { id: req.params.id } });
 
     if (!candidate) {
@@ -136,9 +123,7 @@ router.delete("/delete/:id", async (req, res) => {
       return;
     }
 
-    const userId = await TokenService.checkToken(token);
-
-    if (candidate.userId !== Number(userId)) {
+    if (candidate.userId !== Number(req.userId)) {
       res.status(403).send("Forbidden");
       return;
     }
@@ -151,10 +136,8 @@ router.delete("/delete/:id", async (req, res) => {
   }
 });
 
-router.post("/share/:id", async (req, res) => {
+router.post("/share/:id", auth, async (req, res) => {
   try {
-    const token = req.headers.token;
-
     const note = await Note.findOne({ where: { id: req.params.id } });
 
     if (!note) {
@@ -162,9 +145,7 @@ router.post("/share/:id", async (req, res) => {
       return;
     }
 
-    const userId = await TokenService.checkToken(token);
-
-    if (note.userId !== Number(userId)) {
+    if (note.userId !== Number(req.userId)) {
       res.status(403).send("Forbidden");
       return;
     }
